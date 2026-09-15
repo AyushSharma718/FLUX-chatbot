@@ -1,0 +1,22 @@
+# Environment
+.env
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# ChromaDB
+backend/data/chroma_db/
+
+# Playwright
+playwright-report/
+test-results/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
