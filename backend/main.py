@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 import chromadb
 from sentence_transformers import SentenceTransformer
-from huggingface_hub import InferenceClient
+from openai import OpenAI
 
 
 # ============================================================
@@ -18,14 +18,22 @@ from huggingface_hub import InferenceClient
 
 load_dotenv()
 
-HF_TOKEN = os.getenv("HF_TOKEN")
 
-HF_MODEL = os.getenv(
-    "HF_MODEL",
-    "deepseek-ai/DeepSeek-V3-0324"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+GROQ_MODEL = os.getenv(
+    "GROQ_MODEL",
+    "openai/gpt-oss-20b"
 )
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+if not GROQ_API_KEY:
+    raise RuntimeError(
+        "GROQ_API_KEY not found. "
+        "Add it to backend/.env"
+    )
+
 
 
 # ============================================================
@@ -41,17 +49,6 @@ CHROMA_PATH = os.path.join(
 )
 
 COLLECTION_NAME = "flux_website"
-
-
-# ============================================================
-# VALIDATE ENVIRONMENT
-# ============================================================
-
-if not HF_TOKEN:
-    raise RuntimeError(
-        "HF_TOKEN not found.\n"
-        "Please add HF_TOKEN to backend/.env"
-    )
 
 
 # ============================================================
@@ -143,19 +140,16 @@ print("Initializing Hugging Face...")
 # provider="auto" allows Hugging Face to select
 # an available inference provider for the model.
 
-llm_client = InferenceClient(
-    provider="auto",
-    api_key=HF_TOKEN
+
+print("Initializing Groq...")
+
+llm_client = OpenAI(
+    api_key=GROQ_API_KEY,
+    base_url="https://api.groq.com/openai/v1"
 )
 
-print("Hugging Face client initialized.")
-
-print(
-    f"LLM model: {HF_MODEL}"
-)
-
-print("=" * 60)
-
+print("Groq client initialized.")
+print(f"LLM model: {GROQ_MODEL}")
 
 # ============================================================
 # REQUEST / RESPONSE SCHEMAS
@@ -361,7 +355,7 @@ information above.
 
         response = llm_client.chat.completions.create(
 
-            model=HF_MODEL,
+            model=GROQ_MODEL,
 
             messages=[
                 {
@@ -399,19 +393,18 @@ information above.
         return answer.strip()
 
     except Exception as e:
-
-        print()
-        print("=" * 60)
-        print("HUGGING FACE ERROR:")
-        print(str(e))
-        print("=" * 60)
-        print()
-
+        import traceback
+        
+        print("\n" + "=" * 60)
+        print("HUGGING FACE ERROR — FULL TRACEBACK:")
+        traceback.print_exc()
+        print("=" * 60 + "\n")
+        
         return (
             "I'm having trouble connecting to the AI "
-            "service right now. Please try again in "
-            "a moment."
+            "service right now. Please try again in a moment."
         )
+
 
 
 # ============================================================
@@ -541,16 +534,16 @@ async def chat(request: ChatRequest):
 # HEALTH CHECK
 # ============================================================
 
+
 @app.get("/health")
 async def health():
-
     return {
         "status": "healthy",
         "service": "FLUX AI Chatbot",
         "documents": collection.count(),
         "embedding_model": EMBEDDING_MODEL,
-        "llm_model": HF_MODEL,
-        "huggingface_configured": bool(HF_TOKEN)
+        "llm_model": GROQ_MODEL,
+        "groq_configured": bool(GROQ_API_KEY)
     }
 
 
